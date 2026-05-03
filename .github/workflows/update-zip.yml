@@ -15,35 +15,63 @@ jobs:
     steps:
       - name: Check out portal-skin-pack
         uses: actions/checkout@v4
-        with:
-          repository: Sellingbakedpotatoes/portal-skin-pack
 
-      - name: Download ZIP from site
+      - name: Install browser
         run: |
-          curl -L \
-            --connect-timeout 30 \
-            --max-time 300 \
-            --retry 3 \
-            --retry-delay 10 \
-            "https://portal-skin-forge.base44.app/pack" \
-            -o portalmod_skin_override.zip
+          npm init -y
+          npm install playwright
+          npx playwright install --with-deps chromium
+
+      - name: Download ZIP from Base44
+        run: |
+          node <<'NODE'
+          const { chromium } = require("playwright");
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage({ acceptDownloads: true });
+
+            const downloadPromise = page.waitForEvent("download", {
+              timeout: 300000
+            });
+
+            await page.goto("https://portal-skin-forge.base44.app/pack", {
+              waitUntil: "networkidle",
+              timeout: 300000
+            });
+
+            const download = await downloadPromise;
+            await download.saveAs("portalmod_skin_override.zip");
+
+            await browser.close();
+          })();
+          NODE
 
       - name: Show downloaded file info
         run: |
           ls -lh portalmod_skin_override.zip
           file portalmod_skin_override.zip
 
-      - name: Create release if missing
+      - name: Create latest release if missing
         run: |
           gh release view latest-skin-pack --repo Sellingbakedpotatoes/portal-skin-pack || \
           gh release create latest-skin-pack \
             --repo Sellingbakedpotatoes/portal-skin-pack \
             --title "Latest Skin Pack" \
-            --notes "Automatically updated skin pack."
+            --notes "Automatically updated skin pack." \
+            --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload ZIP to release
+      - name: Mark release as latest
+        run: |
+          gh release edit latest-skin-pack \
+            --repo Sellingbakedpotatoes/portal-skin-pack \
+            --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload ZIP to latest release
         run: |
           gh release upload latest-skin-pack portalmod_skin_override.zip \
             --repo Sellingbakedpotatoes/portal-skin-pack \
