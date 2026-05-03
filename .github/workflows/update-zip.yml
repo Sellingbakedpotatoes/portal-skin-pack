@@ -1,0 +1,38 @@
+name: Update Skin Pack ZIP
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-zip:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download ZIP from site
+        run: |
+          curl -L "https://portal-skin-forge.base44.app/pack" \
+            -o portalmod_skin_override.zip
+
+      - name: Check ZIP exists
+        run: |
+          test -s portalmod_skin_override.zip
+
+      - name: Create release if missing
+        run: |
+          gh release view latest-skin-pack || \
+          gh release create latest-skin-pack \
+            --title "Latest Skin Pack" \
+            --notes "Automatically updated skin pack."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload ZIP to release
+        run: |
+          gh release upload latest-skin-pack portalmod_skin_override.zip --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
