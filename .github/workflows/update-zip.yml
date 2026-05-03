@@ -13,8 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
+      - name: Check out portal-skin-pack
         uses: actions/checkout@v4
+        with:
+          repository: Sellingbakedpotatoes/portal-skin-pack
 
       - name: Download ZIP from site
         run: |
@@ -33,8 +35,9 @@ jobs:
 
       - name: Create release if missing
         run: |
-          gh release view latest-skin-pack || \
+          gh release view latest-skin-pack --repo Sellingbakedpotatoes/portal-skin-pack || \
           gh release create latest-skin-pack \
+            --repo Sellingbakedpotatoes/portal-skin-pack \
             --title "Latest Skin Pack" \
             --notes "Automatically updated skin pack."
         env:
@@ -42,6 +45,8 @@ jobs:
 
       - name: Upload ZIP to release
         run: |
-          gh release upload portal-skin-pack portalmod_skin_override.zip --clobber
+          gh release upload latest-skin-pack portalmod_skin_override.zip \
+            --repo Sellingbakedpotatoes/portal-skin-pack \
+            --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
