@@ -26,6 +26,12 @@ jobs:
             "https://portal-skin-forge.base44.app/pack" \
             -o portalmod_skin_override.zip
 
+      - name: Show downloaded file info
+        run: |
+          ls -lh portalmod_skin_override.zip
+          file portalmod_skin_override.zip
+          head -c 200 portalmod_skin_override.zip || true
+
       - name: Check ZIP is valid
         run: |
           test -s portalmod_skin_override.zip
