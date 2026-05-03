@@ -13,14 +13,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Download ZIP from site
         run: |
-          curl -L "https://portal-skin-forge.base44.app/pack" \
+          curl -L \
+            --connect-timeout 30 \
+            --max-time 300 \
+            --retry 3 \
+            --retry-delay 10 \
+            "https://portal-skin-forge.base44.app/pack" \
             -o portalmod_skin_override.zip
 
-      - name: Check ZIP exists
+      - name: Check ZIP is valid
         run: |
           test -s portalmod_skin_override.zip
+          unzip -t portalmod_skin_override.zip
 
       - name: Create release if missing
         run: |
