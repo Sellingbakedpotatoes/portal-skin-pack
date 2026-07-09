@@ -3,7 +3,7 @@ name: Update Skin Pack ZIP
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 */4 * * *"
+    - cron: "17 */23 * * *"
 
 permissions:
   contents: write
@@ -37,7 +37,7 @@ jobs:
 
             await page.goto("https://portal-skin-forge.base44.app/pack", {
               waitUntil: "networkidle",
-              timeout: 300000
+              timeout: 600000
             });
 
             const download = await downloadPromise;
