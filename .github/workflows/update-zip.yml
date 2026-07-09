@@ -32,7 +32,7 @@ jobs:
             const page = await browser.newPage({ acceptDownloads: true });
 
             const downloadPromise = page.waitForEvent("download", {
-              timeout: 300000
+              timeout: 600000
             });
 
             await page.goto("https://portal-skin-forge.base44.app/pack", {
