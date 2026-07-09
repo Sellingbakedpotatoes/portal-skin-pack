@@ -26,26 +26,131 @@ jobs:
         run: |
           node <<'NODE'
           const { chromium } = require("playwright");
+          const fs = require("fs");
+
+          const outputFile = "portalmod_skin_override.zip";
+          const debugScreenshot = "pack-page-debug.png";
 
           (async () => {
-            const browser = await chromium.launch({ headless: true });
-            const page = await browser.newPage({ acceptDownloads: true });
+            let browser;
 
-            const downloadPromise = page.waitForEvent("download", {
-              timeout: 600000
-            });
+            try {
+              browser = await chromium.launch({
+                headless: true
+              });
 
-            await page.goto("https://portal-skin-forge.base44.app/pack", {
-              waitUntil: "networkidle",
-              timeout: 600000
-            });
+              const context = await browser.newContext({
+                acceptDownloads: true
+              });
 
-            const download = await downloadPromise;
-            await download.saveAs("portalmod_skin_override.zip");
+              const page = await context.newPage();
 
-            await browser.close();
+              page.on("console", message => {
+                console.log(`[browser console] ${message.type()}: ${message.text()}`);
+              });
+
+              page.on("pageerror", error => {
+                console.log(`[browser page error] ${error.message}`);
+              });
+
+              console.log("Opening Base44 pack page...");
+
+              await page.goto("https://portal-skin-forge.base44.app/pack", {
+                waitUntil: "domcontentloaded",
+                timeout: 600000
+              });
+
+              await page.waitForLoadState("networkidle", {
+                timeout: 30000
+              }).catch(() => {
+                console.log("Network did not become idle. Continuing anyway.");
+              });
+
+              console.log("Looking for download control...");
+
+              const downloadButton = page.getByRole("button", {
+                name: /download|zip|pack/i
+              });
+
+              const downloadLink = page.getByRole("link", {
+                name: /download|zip|pack/i
+              });
+
+              const downloadPromise = page.waitForEvent("download", {
+                timeout: 600000
+              });
+
+              if (await downloadButton.count()) {
+                console.log("Clicking download button...");
+                await downloadButton.first().click();
+              } else if (await downloadLink.count()) {
+                console.log("Clicking download link...");
+                await downloadLink.first().click();
+              } else {
+                console.log("No download button or link found.");
+                await page.screenshot({
+                  path: debugScreenshot,
+                  fullPage: true
+                });
+                throw new Error("No download button or download link found on /pack");
+              }
+
+              console.log("Waiting for download...");
+
+              const download = await downloadPromise;
+
+              const failure = await download.failure();
+
+              if (failure) {
+                throw new Error(`Download failed: ${failure}`);
+              }
+
+              console.log(`Saving ZIP as ${outputFile}...`);
+
+              await download.saveAs(outputFile);
+
+              if (!fs.existsSync(outputFile)) {
+                throw new Error(`${outputFile} was not created`);
+              }
+
+              const stats = fs.statSync(outputFile);
+
+              if (stats.size === 0) {
+                throw new Error(`${outputFile} is empty`);
+              }
+
+              console.log(`Downloaded ${outputFile} (${stats.size} bytes)`);
+            } catch (error) {
+              console.error(error);
+
+              if (browser) {
+                const pages = browser.contexts().flatMap(context => context.pages());
+                const page = pages[0];
+
+                if (page && !fs.existsSync(debugScreenshot)) {
+                  await page.screenshot({
+                    path: debugScreenshot,
+                    fullPage: true
+                  }).catch(() => {});
+                }
+              }
+
+              process.exit(1);
+            } finally {
+              if (browser) {
+                await browser.close();
+              }
+            }
           })();
           NODE
+
+      - name: Upload debug screenshot if download failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pack-page-debug
+          path: pack-page-debug.png
+          if-no-files-found: ignore
 
       - name: Show downloaded file info
         run: |
